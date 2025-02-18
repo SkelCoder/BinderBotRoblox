@@ -4,13 +4,46 @@ from PIL import Image, ImageTk
 import keyboard
 import threading
 import time
+import pygetwindow as gw
+import psutil
+import webbrowser
+import requests
 
 class LuaBindManager:
+    APP_VERSION = "Alpha 0.0.2"
+    UPDATE_URL = "https://skel.site/binderbot/version.txt"
+    DOWNLOAD_URL = "https://skel.site/binderbot"
+
+    def check_for_update(self):
+                try:
+                    response = requests.get(self.UPDATE_URL, timeout=5)
+                    latest_version = response.text.strip()
+                    
+                    if latest_version > self.APP_VERSION:
+                        self.app_status = f"Доступно обновление {latest_version}!"
+                        self.root.title(f"BinderBot By SkeL (TG: @XEP_TOHET) | {self.APP_VERSION} | Status: {self.app_status}")
+                        
+                        if messagebox.askyesno("Обновление", f"Доступна новая версия {latest_version}!\nХотите обновить?"):
+                            webbrowser.open(self.DOWNLOAD_URL)
+                        else:
+                            messagebox.showwarning("Обновление", "Вы используете устаревшую версию.")
+                    else:
+                        self.app_status = "Актуальная версия"
+                        self.root.title(f"BinderBot By SkeL (TG: @XEP_TOHET) | {self.APP_VERSION} | Status: {self.app_status}")
+                
+                except requests.exceptions.RequestException:
+                    self.app_status = "Ошибка проверки обновлений"
+                    self.root.title(f"BinderBot By SkeL (TG: @XEP_TOHET) | {self.APP_VERSION} | Status: {self.app_status}")
+
+
     def __init__(self, root):
         self.root = root
-        self.root.title("BinderBot By SkeL (TG: @XEP_TOHET)")
-        self.root.geometry("500x700")
+        self.app_status = "Проверка обновлений..."
+        self.root.title(f"BinderBot By SkeL (TG: @XEP_TOHET) | {self.APP_VERSION} | Status: {self.app_status}")
+        self.root.geometry("700x900")
         self.root.configure(bg="#1e1e1e")
+
+        self.check_for_update()
 
         self.binds = []
         self.selected_position = None
@@ -34,6 +67,9 @@ class LuaBindManager:
 
         self.btn_start = tk.Button(root, text="Запустить бинды", command=self.load_and_start_binds, bg="#ff9800", fg="white", relief="flat", font=("Arial", 12), bd=0)
         self.btn_start.pack(pady=5, fill="x", padx=10)
+
+        self.sitetext = tk.Label(root, text="https://skel.site/binderbot", font=("Arial", 5))
+        self.sitetext.pack(side="bottom", padx=5)
 
     def add_bind(self):
         bind_frame = tk.Frame(self.frame, bg="#2e2e2e", pady=5, padx=5, bd=5, relief="ridge")
@@ -110,9 +146,25 @@ class LuaBindManager:
                 keyboard.press_and_release('enter')
                 time.sleep(1)
 
+        def get_active_window():
+            try:
+                return gw.getActiveWindow().title
+            except:
+                return ""
+
+        def is_roblox_running():
+            for process in psutil.process_iter(['name']):
+                if "RobloxPlayerBeta.exe" in process.info['name']:
+                    return True
+            return False
+
         def on_hotkey_pressed(actions):
-            print("Горячая клавиша нажата, начинаю выполнение бинда...")
-            send_message_from_bind(actions)
+            if "Roblox" in get_active_window() and is_roblox_running():
+                print("Горячая клавиша нажатa, выполняю бинды...")
+                send_message_from_bind(actions)
+            else:
+                print("Бинды работают только в окне Roblox!")
+
 
         for key, actions in binds.items():
             keyboard.add_hotkey(key, on_hotkey_pressed, args=[actions])
@@ -183,7 +235,7 @@ class LuaBindManager:
             btn_add_action = tk.Button(bind_frame, text="+", command=add_action, bg="#ff9800", fg="white", relief="flat", font=("Arial", 10))
             btn_add_action.pack(side="left", padx=5)
 
-            btn_remove_last_action = tk.Button(bind_frame, text="Удалить последний текст", command=remove_last_action, bg="#f44336", fg="white", relief="flat", font=("Arial", 10))
+            btn_remove_last_action = tk.Button(bind_frame, text="-", command=remove_last_action, bg="#f44336", fg="white", relief="flat", font=("Arial", 10))
             btn_remove_last_action.pack(side="left", padx=5)
 
             self.binds.append((key_var, action_vars))
