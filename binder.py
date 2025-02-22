@@ -10,7 +10,7 @@ import webbrowser
 import requests
 
 class LuaBindManager:
-    APP_VERSION = "Alpha 0.0.2"
+    APP_VERSION = "Alpha 0.0.3"
     UPDATE_URL = "https://skel.site/binderbot/version.txt"
     DOWNLOAD_URL = "https://skel.site/binderbot"
 
@@ -68,7 +68,7 @@ class LuaBindManager:
         self.btn_start = tk.Button(root, text="Запустить бинды", command=self.load_and_start_binds, bg="#ff9800", fg="white", relief="flat", font=("Arial", 12), bd=0)
         self.btn_start.pack(pady=5, fill="x", padx=10)
 
-        self.sitetext = tk.Label(root, text="https://skel.site/binderbot", font=("Arial", 5))
+        self.sitetext = tk.Label(root, text="https://skel.site/binderbot", font=("Arial", 7))
         self.sitetext.pack(side="bottom", padx=5)
 
     def add_bind(self):
@@ -127,7 +127,7 @@ class LuaBindManager:
         file_path = filedialog.askopenfilename(title="Выберите файл биндов", filetypes=[("Lua Files", "*.lua")])
         if not file_path:
             return
-        
+
         binds = {}
         try:
             with open(file_path, "r", encoding="utf-8") as f:
@@ -136,7 +136,7 @@ class LuaBindManager:
         except Exception as e:
             messagebox.showerror("Ошибка", f"Ошибка загрузки биндов: {e}")
             return
-        
+
         def send_message_from_bind(actions):
             for action in actions:
                 keyboard.press_and_release('/')
@@ -158,16 +158,15 @@ class LuaBindManager:
                     return True
             return False
 
-        def on_hotkey_pressed(actions):
+        def on_hotkey_pressed(key, actions):
             if "Roblox" in get_active_window() and is_roblox_running():
-                print("Горячая клавиша нажатa, выполняю бинды...")
+                print(f"Горячая клавиша {key} нажата, выполняю бинды...")
                 send_message_from_bind(actions)
             else:
                 print("Бинды работают только в окне Roblox!")
 
-
         for key, actions in binds.items():
-            keyboard.add_hotkey(key, on_hotkey_pressed, args=[actions])
+            keyboard.add_hotkey(key, lambda key=key, actions=actions: on_hotkey_pressed(key, actions), suppress=True)
 
         messagebox.showinfo("Запущено", "Бинды активированы")
         threading.Thread(target=keyboard.wait, daemon=True).start()
