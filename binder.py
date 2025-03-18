@@ -10,34 +10,36 @@ import webbrowser
 import requests
 
 class LuaBindManager:
-    APP_VERSION = "Alpha 0.0.3"
+    APP_VERSION = "Alpha 0.0.4"
     UPDATE_URL = "https://skel.site/binderbot/version.txt"
     DOWNLOAD_URL = "https://skel.site/binderbot"
 
     def check_for_update(self):
-                try:
-                    response = requests.get(self.UPDATE_URL, timeout=5)
-                    latest_version = response.text.strip()
-                    
-                    if latest_version > self.APP_VERSION:
-                        self.app_status = f"Доступно обновление {latest_version}!"
-                        self.root.title(f"BinderBot By SkeL (TG: @XEP_TOHET) | {self.APP_VERSION} | Status: {self.app_status}")
-                        
-                        if messagebox.askyesno("Обновление", f"Доступна новая версия {latest_version}!\nХотите обновить?"):
-                            webbrowser.open(self.DOWNLOAD_URL)
-                        else:
-                            messagebox.showwarning("Обновление", "Вы используете устаревшую версию.")
-                    else:
-                        self.app_status = "Актуальная версия"
-                        self.root.title(f"BinderBot By SkeL (TG: @XEP_TOHET) | {self.APP_VERSION} | Status: {self.app_status}")
+        try:
+            response = requests.get(self.UPDATE_URL, timeout=5)
+            latest_version = response.text.strip()
+            
+            if latest_version > self.APP_VERSION:
+                self.app_status = f"Доступно обновление {latest_version}!"
+                self.root.title(f"BinderBot By SkeL (TG: @XEP_TOHET) | {self.APP_VERSION} | Status: {self.app_status}")
                 
-                except requests.exceptions.RequestException:
-                    self.app_status = "Ошибка проверки обновлений"
-                    self.root.title(f"BinderBot By SkeL (TG: @XEP_TOHET) | {self.APP_VERSION} | Status: {self.app_status}")
+                if messagebox.askyesno("Обновление", f"Доступна новая версия {latest_version}!\nХотите обновить?"):
+                    webbrowser.open(self.DOWNLOAD_URL)
+                else:
+                    messagebox.showwarning("Обновление", "Вы используете устаревшую версию.")
+            else:
+                self.app_status = "Актуальная версия"
+                self.root.title(f"BinderBot By SkeL (TG: @XEP_TOHET) | {self.APP_VERSION} | Status: {self.app_status}")
+        
+        except requests.exceptions.RequestException:
+            self.app_status = "Ошибка проверки обновлений"
+            self.root.title(f"BinderBot By SkeL (TG: @XEP_TOHET) | {self.APP_VERSION} | Status: {self.app_status}")
 
 
     def __init__(self, root):
         self.root = root
+        self.binds_enabled = True
+        self.active_binds = {}
         self.app_status = "Проверка обновлений..."
         self.root.title(f"BinderBot By SkeL (TG: @XEP_TOHET) | {self.APP_VERSION} | Status: {self.app_status}")
         self.root.geometry("700x900")
@@ -67,6 +69,12 @@ class LuaBindManager:
 
         self.btn_start = tk.Button(root, text="Запустить бинды", command=self.load_and_start_binds, bg="#ff9800", fg="white", relief="flat", font=("Arial", 12), bd=0)
         self.btn_start.pack(pady=5, fill="x", padx=10)
+
+        self.btn_pause = tk.Button(root, text="Пауза/Возобновить", command=self.toggle_pause_binds, bg="#ff9800", fg="white", relief="flat", font=("Arial", 12), bd=0)
+        self.btn_pause.pack(pady=5, fill="x", padx=10)
+        
+        self.btn_disable = tk.Button(root, text="Отключить все бинды", command=self.disable_binds, bg="#f44336", fg="white", relief="flat", font=("Arial", 12), bd=0)
+        self.btn_disable.pack(pady=5, fill="x", padx=10)
 
         self.sitetext = tk.Label(root, text="https://skel.site/binderbot", font=("Arial", 7))
         self.sitetext.pack(side="bottom", padx=5)
@@ -124,6 +132,9 @@ class LuaBindManager:
         messagebox.showinfo("Сохранено", f"Бинды сохранены в {file_name}")
 
     def load_and_start_binds(self):
+        self.active_binds = {}
+
+        # Запрос на выбор файла с биндом
         file_path = filedialog.askopenfilename(title="Выберите файл биндов", filetypes=[("Lua Files", "*.lua")])
         if not file_path:
             return
@@ -159,6 +170,9 @@ class LuaBindManager:
             return False
 
         def on_hotkey_pressed(key, actions):
+            if not self.binds_enabled:
+                return
+
             if "Roblox" in get_active_window() and is_roblox_running():
                 print(f"Горячая клавиша {key} нажата, выполняю бинды...")
                 send_message_from_bind(actions)
@@ -178,10 +192,9 @@ class LuaBindManager:
             if 'binds["' in line and '"] =' in line:
                 key = line.split('["')[1].split('"]')[0]
                 actions = line.split("= {")[1].split("}")[0].split(", ")
-                actions = [action.replace('"', '').strip() for action in actions]
-                binds[key] = actions
+                binds[key] = [action.strip().strip('"') for action in actions]
         return binds
-        
+    
     def edit_binds(self):
         file_path = filedialog.askopenfilename(title="Выберите файл биндов для редактирования", filetypes=[("Lua Files", "*.lua")])
         if not file_path:
@@ -239,6 +252,17 @@ class LuaBindManager:
 
             self.binds.append((key_var, action_vars))
 
-root = tk.Tk()
-app = LuaBindManager(root)
-root.mainloop()
+    def toggle_pause_binds(self):
+        self.binds_enabled = not self.binds_enabled
+        status = "Пауза" if not self.binds_enabled else "Работают"
+        self.btn_pause.config(text=f"{status}/Возобновить")
+
+    def disable_binds(self):
+        self.binds_enabled = False
+        self.btn_pause.config(text="Пауза/Возобновить")
+        messagebox.showinfo("Отключение", "Все бинды отключены")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = LuaBindManager(root)
+    root.mainloop()
